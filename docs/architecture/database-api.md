@@ -449,7 +449,11 @@ function of the session journal; XP is the only currency.
 
 ## Rest Suggestions
 
-Smart rest day recommendations.
+Smart rest day recommendations. The thresholds that each `reason` fires at scale with the hero's
+`trainingLevel` (`thresholdsFor(level)` in `db/restSuggestions.ts`): `regular` is the figure the
+app used before the setting existed, `beginner` is warned sooner, `advanced` later. The pure
+`restSuggestionAt(sessions, now, level)` takes the level as an argument; `getRestSuggestion()`
+reads the preference and threads it. See [designs/rappels.md](../designs/rappels.md).
 
 ### Types
 

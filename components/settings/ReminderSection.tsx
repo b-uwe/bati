@@ -12,6 +12,7 @@ import { SettingRow } from "@/components/settings/SettingRow";
 import { getDateTimeFormat, getWeekStart } from "@/constants/dateFormatters";
 import { dayKey } from "@/db/dates";
 import { DEFAULT_WEEKLY_TARGET, getOath } from "@/db/oaths";
+import { DEFAULT_TRAINING_LEVEL, preferences, type TrainingLevel } from "@/db/preferences";
 import {
   dayOf,
   describeDay,
@@ -54,6 +55,8 @@ type ReminderView = {
   flameQuota: number;
   plannedOn: string | null;
   synced: boolean;
+  /** The hero's training level, which sets the rest thresholds the preview explains. */
+  trainingLevel: TrainingLevel;
 };
 
 type Note = "denied" | "withdrawn" | "keep_one_day" | null;
@@ -66,12 +69,13 @@ async function readView(): Promise<{ view: ReminderView; withdrawn: boolean }> {
   // to none. The switch follows Android, and Settings says why.
   const withdrawn = state.enabled && !Reminders.areEnabled();
   if (withdrawn) Reminders.setEnabled(false);
-  const [days, sessions, streakFrom, oath, flameQuota, account] = await Promise.all([
+  const [days, sessions, streakFrom, oath, flameQuota, trainingLevel, account] = await Promise.all([
     getReminderDays(),
     getReminderSessions(new Date()),
     reminderPrefs.streakFrom(),
     getOath(),
     getWeeklyQuota(),
+    preferences.getTrainingLevel(),
     syncAccount().catch((e: unknown) => {
       reportError("reminders.syncAccount", e);
       return null;
@@ -93,6 +97,7 @@ async function readView(): Promise<{ view: ReminderView; withdrawn: boolean }> {
       flameQuota,
       plannedOn: state.plannedOn,
       synced: account !== null,
+      trainingLevel: trainingLevel ?? DEFAULT_TRAINING_LEVEL,
     },
   };
 }
@@ -511,6 +516,7 @@ function Preview({
     offer: { kind: "gallery", trained: false },
     oath: null,
     language,
+    trainingLevel: view.trainingLevel,
     t: (key) => key,
   };
   const next = planReminders(input).entries[0];
@@ -524,6 +530,7 @@ function Preview({
     view.streakFrom,
     view.resumeDate,
     view.plannedOn,
+    view.trainingLevel,
   );
 
   return (

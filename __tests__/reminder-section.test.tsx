@@ -76,6 +76,14 @@ jest.mock("@/db/reminders", () => ({
 jest.mock("@/db/oaths", () => ({ getOath: async () => mockOath }));
 let mockQuota = 2;
 jest.mock("@/db/streaks", () => ({ getWeeklyQuota: async () => mockQuota }));
+let mockTrainingLevel: import("@/db/preferences").TrainingLevel | null = null;
+jest.mock("@/db/preferences", () => ({
+  ...jest.requireActual("@/db/preferences"),
+  preferences: {
+    ...jest.requireActual("@/db/preferences").preferences,
+    getTrainingLevel: async () => mockTrainingLevel,
+  },
+}));
 jest.mock("@/src/deviceSync", () => ({ syncAccount: async () => null }));
 jest.mock("@/src/reminders", () => ({
   replanRemindersNow: jest.fn().mockResolvedValue(undefined),
@@ -119,6 +127,7 @@ beforeEach(() => {
   mockDays = {};
   mockOath = null;
   mockQuota = 2;
+  mockTrainingLevel = null;
 });
 
 test("off by default: the preview says so, and nothing is asked until the switch is touched", async () => {

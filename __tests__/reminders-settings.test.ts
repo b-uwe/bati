@@ -58,6 +58,7 @@ const input = (over: Partial<PlanInput> = {}): PlanInput => ({
   offer: { kind: "gallery" } as HomeOffer,
   oath: null,
   language: "en",
+  trainingLevel: "regular",
   t: (key) => key,
   ...over,
 });
@@ -107,36 +108,46 @@ describe("missedReminder", () => {
   const tuesday = new Date(2026, 0, 13, 12);
 
   test("Monday should have rung and the journal does not have it", () => {
-    expect(missedReminder(monOnly, [], [], tuesday, null, null, null)).toBe("2026-01-12");
+    expect(missedReminder(monOnly, [], [], tuesday, null, null, null, "regular")).toBe(
+      "2026-01-12",
+    );
   });
 
   test("it rang: nothing to say", () => {
     expect(
-      missedReminder(monOnly, [posted("2026-01-12")], [], tuesday, null, null, null),
+      missedReminder(monOnly, [posted("2026-01-12")], [], tuesday, null, null, null, "regular"),
     ).toBeNull();
   });
 
   test("a day that never rang on purpose is not a phone's fault", () => {
     const trained = [workout(new Date(2026, 0, 12, 18))];
-    expect(missedReminder(monOnly, [], trained, tuesday, null, null, null)).toBeNull();
+    expect(missedReminder(monOnly, [], trained, tuesday, null, null, null, "regular")).toBeNull();
   });
 
   test("before the switch was on, or during a pause, it was never due", () => {
-    expect(missedReminder(monOnly, [], [], tuesday, "2026-01-12", null, null)).toBeNull();
-    expect(missedReminder(monOnly, [], [], tuesday, null, "2026-01-19", null)).toBeNull();
+    expect(
+      missedReminder(monOnly, [], [], tuesday, "2026-01-12", null, null, "regular"),
+    ).toBeNull();
+    expect(
+      missedReminder(monOnly, [], [], tuesday, null, "2026-01-19", null, "regular"),
+    ).toBeNull();
   });
 
   test("past the horizon of the last plan, the phone went quiet on purpose", () => {
     // Planned on 1 December: its fourteen days ended long before Monday the 12th.
-    expect(missedReminder(monOnly, [], [], tuesday, null, null, "2025-12-01")).toBeNull();
-    expect(missedReminder(monOnly, [], [], tuesday, null, null, "2026-01-05")).toBe("2026-01-12");
+    expect(
+      missedReminder(monOnly, [], [], tuesday, null, null, "2025-12-01", "regular"),
+    ).toBeNull();
+    expect(missedReminder(monOnly, [], [], tuesday, null, null, "2026-01-05", "regular")).toBe(
+      "2026-01-12",
+    );
   });
 
   test("today's hour is not missed until its hour is well past", () => {
     const today = { tue: "11:30" };
-    expect(missedReminder(today, [], [], tuesday, null, null, null)).toBeNull();
+    expect(missedReminder(today, [], [], tuesday, null, null, null, "regular")).toBeNull();
     const later = new Date(2026, 0, 13, 13);
-    expect(missedReminder(today, [], [], later, null, null, null)).toBe("2026-01-13");
+    expect(missedReminder(today, [], [], later, null, null, null, "regular")).toBe("2026-01-13");
   });
 });
 

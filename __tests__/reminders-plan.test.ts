@@ -58,6 +58,7 @@ function input(overrides: Partial<PlanInput> = {}): PlanInput {
     offer: weakMuscles,
     oath: null,
     language: "en",
+    trainingLevel: "regular",
     t,
     ...overrides,
   };
@@ -158,6 +159,17 @@ describe("planReminders: never for nothing", () => {
     const plan = planReminders(input({ sessions }));
     expect(dates(plan).slice(0, 2)).toEqual(["2026-01-17", "2026-01-18"]);
     expect(plan.dueToday).toBe("no");
+  });
+
+  test("the training level decides whether acute rest silences a day", () => {
+    // Four days in a row ending yesterday: a beginner (threshold four) rests the next day, where a
+    // regular hero (five) is left to train.
+    const sessions = [1, 2, 3, 4].map((d) => workout(new Date(2026, 0, 15 - d, 12)));
+    expect(planReminders(input({ sessions })).dueToday).toBe("yes");
+    expect(dates(planReminders(input({ sessions })))[0]).toBe("2026-01-15");
+    const beginner = planReminders(input({ sessions, trainingLevel: "beginner" }));
+    expect(beginner.dueToday).toBe("no");
+    expect(dates(beginner)[0]).not.toBe("2026-01-15");
   });
 
   test("a deload does not silence anything: it says go easy, not stay home", () => {

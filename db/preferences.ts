@@ -10,6 +10,14 @@ const { userPreferences } = schema;
 
 export type TrainingLevel = "beginner" | "regular" | "advanced";
 
+/**
+ * What a reader treats a hero as when `trainingLevel` was never answered, wherever the `null` is
+ * not a signal in its own right: `regular` is the middle, and the figure the rest advice used
+ * before the setting existed. One source, so every reader defaults the same way. Readers for whom
+ * `null` *is* a signal (`startsGently`, `isStartingOut`) keep reading the `null`, not this.
+ */
+export const DEFAULT_TRAINING_LEVEL: TrainingLevel = "regular";
+
 function isTrainingLevel(value: string | null): value is TrainingLevel {
   return value === "beginner" || value === "regular" || value === "advanced";
 }

@@ -16,7 +16,7 @@ import { dayKey } from "./dates";
 import { formatDurationEstimate } from "./estimate";
 import type { HomeOffer } from "./homeOffer";
 import { DEFAULT_WEEKLY_TARGET, type Oath, oathWeekStart } from "./oaths";
-import { getPreference, setPreference } from "./preferences";
+import { getPreference, setPreference, type TrainingLevel } from "./preferences";
 import { REST_LOOKBACK_DAYS, restSuggestionAt } from "./restSuggestions";
 
 const { completedQuest } = schema;
@@ -137,6 +137,8 @@ export type PlanInput = {
   offer: HomeOffer;
   oath: Oath | null;
   language: AppLanguage;
+  /** The hero's training level, which sets how soon the rest advice suppresses a reminder. */
+  trainingLevel: TrainingLevel;
   t: Translate;
 };
 
@@ -173,8 +175,8 @@ function at(key: string, time: string): Date {
 }
 
 /** Rest the reminders stay quiet for: the acute reasons. A deload says go easy, not stay home. */
-function restsOn(workouts: readonly Date[], moment: Date): boolean {
-  const { reason } = restSuggestionAt(workouts, moment);
+function restsOn(workouts: readonly Date[], moment: Date, level: TrainingLevel): boolean {
+  const { reason } = restSuggestionAt(workouts, moment, level);
   return reason === "consecutive_days" || reason === "high_volume" || reason === "overtraining";
 }
 
@@ -299,7 +301,7 @@ function oathLine(input: PlanInput, date: string, done: number | null): string {
  * - it is today and its hour is more than `REMINDER_LATE_MINUTES` gone.
  */
 export function planReminders(input: PlanInput): ReminderPlan {
-  const { days, now, sessions, sessionActive, state, offer, t } = input;
+  const { days, now, sessions, sessionActive, state, offer, trainingLevel, t } = input;
   const today = dayKey(now);
   const workouts = sessions.filter(isWorkoutRow).map((s) => s.performedAt);
   const trainedToday = workouts.some((w) => dayKey(w) === today);
@@ -317,7 +319,7 @@ export function planReminders(input: PlanInput): ReminderPlan {
     // Any day the journal has, not only today: a clock moved back must not ring one twice.
     if (reminded.has(date)) continue;
     if (date === today && (trainedToday || tooLate(now, time))) continue;
-    if (restsOn(workouts, at(date, time))) continue;
+    if (restsOn(workouts, at(date, time), trainingLevel)) continue;
 
     const variant = `${sentence.case}.${nextVariant(sentence.case, previous, sentence.only)}`;
     previous = variant;
@@ -330,7 +332,7 @@ export function planReminders(input: PlanInput): ReminderPlan {
     });
   }
 
-  const done = trainedToday || restsOn(workouts, todayMoment(days, today, now));
+  const done = trainedToday || restsOn(workouts, todayMoment(days, today, now), trainingLevel);
   return { entries, dueToday: dueTodayFor(done, sessionActive), quietText: t("reminders.quiet") };
 }
 
@@ -545,7 +547,7 @@ export type DayNote = {
  * The reasons behind the plan, so the preview can always say why: "today skipped, session done",
  * "no reminder tomorrow, Bati advises rest". The same rules `planReminders` applied, read again.
  */
-export function describeDay({ days, now, sessions, state }: PlanInput): DayNote {
+export function describeDay({ days, now, sessions, state, trainingLevel }: PlanInput): DayNote {
   const today = dayKey(now);
   const tomorrow = dayKey(addDays(now, 1));
   const workouts = sessions.filter(isWorkoutRow).map((s) => s.performedAt);
@@ -557,11 +559,12 @@ export function describeDay({ days, now, sessions, state }: PlanInput): DayNote 
   const rang = state.log.some((e) => e.date === today);
   if (todayTime !== null && !rang) {
     if (workouts.some((w) => dayKey(w) === today)) todayNote = "done";
-    else if (restsOn(workouts, at(today, todayTime))) todayNote = "rest";
+    else if (restsOn(workouts, at(today, todayTime), trainingLevel)) todayNote = "rest";
   }
   return {
     today: todayNote,
-    restTomorrow: tomorrowTime !== null && restsOn(workouts, at(tomorrow, tomorrowTime)),
+    restTomorrow:
+      tomorrowTime !== null && restsOn(workouts, at(tomorrow, tomorrowTime), trainingLevel),
   };
 }
 
@@ -580,6 +583,7 @@ export function missedReminder(
   since: string | null,
   pausedUntil: string | null,
   plannedOn: string | null,
+  trainingLevel: TrainingLevel,
 ): string | null {
   const workouts = sessions.filter(isWorkoutRow).map((s) => s.performedAt);
   const posted = new Set(log.map((e) => e.date));
@@ -590,7 +594,9 @@ export function missedReminder(
     const hour = at(date, time);
     if (hour.getTime() + REMINDER_LATE_MINUTES * 60_000 > now.getTime()) continue;
     if (since !== null && date <= since) return null;
-    if (pausedOn(date, pausedUntil) || silentOnPurpose(workouts, date, hour)) return null;
+    if (pausedOn(date, pausedUntil) || silentOnPurpose(workouts, date, hour, trainingLevel)) {
+      return null;
+    }
     return posted.has(date) ? null : date;
   }
   return null;
@@ -608,8 +614,13 @@ function pausedOn(date: string, pausedUntil: string | null): boolean {
 }
 
 /** A day that never rang on purpose: trained, or acute rest at its hour. */
-function silentOnPurpose(workouts: readonly Date[], date: string, hour: Date): boolean {
-  return workouts.some((w) => dayKey(w) === date) || restsOn(workouts, hour);
+function silentOnPurpose(
+  workouts: readonly Date[],
+  date: string,
+  hour: Date,
+  level: TrainingLevel,
+): boolean {
+  return workouts.some((w) => dayKey(w) === date) || restsOn(workouts, hour, level);
 }
 
 /**

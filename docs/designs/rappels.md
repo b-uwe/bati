@@ -389,10 +389,17 @@ depuis). Fichiers et numéros de ligne sont justes. Ce qui suit corrige ou préc
   source.
 - **`isWorkout` en JS** : c'est un fragment SQL. Le plan utilise le prédicat de ligne
   `outing === null` (comme `db/achievements.ts:778`), et un test vérifie que les deux disent pareil.
-- **`restSuggestionAt(sessions, now)`** : prend **35 jours** de séances `isWorkout` (7 jours + les 5
-  semaines du deload). Le rappel filtre sur `reason` (`consecutive_days`, `high_volume`,
+- **`restSuggestionAt(sessions, now, level)`** : prend **35 jours** de séances `isWorkout` (7 jours
+  + les 5 semaines du deload). Le rappel filtre sur `reason` (`consecutive_days`, `high_volume`,
   `overtraining`), jamais sur `shouldRest`, qui est vrai aussi pour `deload`. `getRestSuggestion()`
   devient une lecture + un appel à la version pure, pour qu'il n'y ait qu'une règle.
+- **Seuils par niveau** : les bornes de chaque `reason` viennent de `thresholdsFor(level)`, lu depuis
+  le `trainingLevel` du héros. `regular` garde les chiffres d'avant le réglage (un héros qui n'a
+  jamais répondu ne voit aucun changement) ; `beginner` est prévenu plus tôt, `advanced` plus tard.
+  La cadence du deload (4 semaines) ne bouge pas. `level` reste un **argument** (défaut
+  `DEFAULT_TRAINING_LEVEL`), pas une lecture de préférence : `restSuggestionAt` reste pure, et le
+  même niveau est passé aux rappels (`planReminders`, `missedReminder`) pour que la note d'accueil
+  et la notification qu'elle tait disent toujours la même chose.
 - **Bug UTC** : plus étroit qu'annoncé. À l'ouest de UTC, un dernier entraînement **hier** est lu
   avant-hier, la garde « aujourd'hui ou hier » échoue et `consecutive_days` tombe à 0. Le test à
   UTC-5 couvre ce cas précis.

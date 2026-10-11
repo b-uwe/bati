@@ -4,7 +4,7 @@ import { getSessionAggregates } from "@/db/completed";
 import { dayKey } from "@/db/dates";
 import { decideHomeOffer } from "@/db/homeOffer";
 import { getOath } from "@/db/oaths";
-import { preferences } from "@/db/preferences";
+import { DEFAULT_TRAINING_LEVEL, preferences } from "@/db/preferences";
 import {
   getReminderDays,
   getReminderSessions,
@@ -48,11 +48,12 @@ export async function replanReminders(sessionHeld: boolean): Promise<void> {
   const language = resolveAppLanguage(await preferences.getLanguage());
   const t = (key: string, options?: Record<string, unknown>) =>
     i18n.t(key, { ...options, lng: language });
-  const [days, sessions, offer, oath] = await Promise.all([
+  const [days, sessions, offer, oath, trainingLevel] = await Promise.all([
     getReminderDays(),
     getReminderSessions(now),
     decideHomeOffer(language),
     getOath(),
+    preferences.getTrainingLevel(),
   ]);
   if (!offer || mine !== replans) return;
 
@@ -65,6 +66,7 @@ export async function replanReminders(sessionHeld: boolean): Promise<void> {
     offer,
     oath,
     language,
+    trainingLevel: trainingLevel ?? DEFAULT_TRAINING_LEVEL,
     t,
   });
   Reminders.setPlan({

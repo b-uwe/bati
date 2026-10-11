@@ -1,7 +1,7 @@
 import * as schema from "../db/schema";
 import { clientMock, createTestDb } from "./helpers/testDb";
 
-const { completedQuest } = schema;
+const { completedQuest, userPreferences } = schema;
 
 describe("db/restSuggestions", () => {
   const t = createTestDb();
@@ -17,6 +17,7 @@ describe("db/restSuggestions", () => {
 
   beforeEach(() => {
     t.db.delete(completedQuest).run();
+    t.db.delete(userPreferences).run();
   });
 
   // Helper to add a session on a specific date
@@ -157,6 +158,26 @@ describe("db/restSuggestions", () => {
       for (const daysAgo of [0, 1, 2, 3, 5, 6]) await addSessionOnDate(daysAgo);
 
       expect((await getRestSuggestion()).reason).toBe("overtraining");
+    });
+  });
+
+  describe("training level", () => {
+    test("a stored beginner level rests after four consecutive days", async () => {
+      const { getRestSuggestion } =
+        require("../db/restSuggestions") as typeof import("../db/restSuggestions");
+      const { setPreference } = require("../db/preferences") as typeof import("../db/preferences");
+      await setPreference("trainingLevel", "beginner");
+      for (const daysAgo of [0, 1, 2, 3]) await addSessionOnDate(daysAgo);
+
+      expect((await getRestSuggestion()).reason).toBe("consecutive_days");
+    });
+
+    test("the same four days are nothing at the default (regular) level", async () => {
+      const { getRestSuggestion } =
+        require("../db/restSuggestions") as typeof import("../db/restSuggestions");
+      for (const daysAgo of [0, 1, 2, 3]) await addSessionOnDate(daysAgo);
+
+      expect((await getRestSuggestion()).reason).toBe("none");
     });
   });
 });
